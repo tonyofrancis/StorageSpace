@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">StorageSpace</string>
+    <string name="internal_storage">Internal Storage</string>
+    <string name="used">Used</string>
+    <string name="free">Free</string>
+    <string name="app">App</string>
+    <string name="sdcard_storage">SD Card</string>
+</resources>

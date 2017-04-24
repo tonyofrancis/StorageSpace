@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="StorageGraphView">
+        <attr name="titleText" format="string" />
+        <attr name="titleTextSize" format="dimension" />
+        <attr name="titleColor" format="reference" />
+        <attr name="legendDrawable" format="integer" />
+        <attr name="legendTextSize" format="dimension" />
+        <attr name="legendTextColor" format="reference" />
+    </declare-styleable>
+</resources>
