@@ -10,7 +10,9 @@ import android.support.annotation.Nullable;
 import android.text.format.Formatter;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -353,7 +355,7 @@ public final class Storage {
             return 0;
         }
 
-        return file.length();
+        return getDirectorySize(file);
     }
 
     /**
@@ -426,7 +428,7 @@ public final class Storage {
             return null;
         }
 
-        File file = getSecondaryAppDataDir(context);
+        File file = getSecondaryStorageDir(context);
 
         if(file != null) {
             return getStorageVolume(file);
@@ -445,6 +447,44 @@ public final class Storage {
             throw new NullPointerException("Context cannot be null");
         }
 
-        return getAppDir(context).length();
+        return getDirectorySize(getAppDir(context));
+    }
+
+    /**
+     * Gets the size(bytes) of a directory or file
+     *
+     * @param file file
+     * @return directory size in bytes
+     * */
+    public static long getDirectorySize(File file) {
+
+        if(file == null) {
+            throw new NullPointerException("File cannot be null");
+        }
+
+        LinkedList<File> queue = new LinkedList<>();
+        long size = 0;
+
+        queue.add(file);
+
+        while (!queue.isEmpty()) {
+
+            File f = queue.remove();
+
+            if(f != null) {
+
+                size += f.length();
+
+                if(file.isDirectory()) {
+
+                    File[] subFiles = f.listFiles();
+
+                    if(subFiles != null) {
+                        queue.addAll(Arrays.asList(subFiles));
+                    }
+                }
+            }
+        }
+        return size;
     }
 }
