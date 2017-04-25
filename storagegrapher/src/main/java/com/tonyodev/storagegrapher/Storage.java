@@ -7,14 +7,13 @@ import android.os.StatFs;
 import android.os.storage.StorageManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.os.EnvironmentCompat;
 import android.text.format.Formatter;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by tonyofrancis on 4/21/17.
@@ -67,16 +66,16 @@ public final class Storage {
         return Formatter.formatFileSize(context,bytes);
     }
 
-    public static long bytesToGigabytes(long bytes) {
-        return bytes / 1073741824;
+    public static double bytesToGigabytes(long bytes) {
+        return (double)bytes / (double)1073741824;
     }
 
-    public static long bytesToMegabytes(long bytes) {
-        return bytes / 1048576;
+    public static double bytesToMegabytes(long bytes) {
+        return (double)bytes / (double)1048576;
     }
 
-    public static long bytesToKilobytes(long bytes) {
-        return bytes / 1024;
+    public static double bytesToKilobytes(long bytes) {
+        return (double)bytes / (double)1024;
     }
 
     /**
@@ -198,44 +197,8 @@ public final class Storage {
     }
 
     /**
-     * @param bytes bytes
-     * @return  a map that contains the GB,MB,KB,B after bytes is converted
-     * */
-    public static Map<String,Long> convertBytesToMap(long bytes) {
-
-        HashMap<String,Long> map = new HashMap<>(4);
-
-        long leftOverBytes = bytes;
-
-        long gb = (int) bytesToGigabytes(leftOverBytes);
-        leftOverBytes = subtractFromBytes(leftOverBytes,1073741824,gb);
-
-        long mb = (int) bytesToMegabytes(leftOverBytes);
-        leftOverBytes = subtractFromBytes(leftOverBytes,1048576,mb);
-
-        long kb = (int) bytesToKilobytes(leftOverBytes);
-        leftOverBytes = subtractFromBytes(leftOverBytes,1024,kb);
-
-        map.put("GB",gb);
-        map.put("MB",mb);
-        map.put("KB",kb);
-        map.put("B",leftOverBytes);
-
-        return map;
-    }
-
-    private static long subtractFromBytes(long bytes,long amount,long multiplier) {
-
-        if(multiplier <= 0) {
-            return bytes;
-        }
-
-        return bytes - (amount * multiplier);
-    }
-
-    /**
-     * @return File - Primary storage directory. Primary internal storage.
-     * In some cases this could be an SD Card
+     * @return File - Primary storage directory. External SDCard. In some cases
+     * this can be the internal storage.
      * */
     @Nullable
     public static File getPrimaryStorageDir() {
@@ -246,7 +209,7 @@ public final class Storage {
             return new File(storage);
         }
 
-        return null;
+        return Environment.getExternalStorageDirectory();
     }
 
     /**
@@ -281,9 +244,52 @@ public final class Storage {
                     return new File("/storage/" + volume.getUuid());
                 }
             }
+        }else {
+
+            File storageDir = new File("/storage");
+
+            if(storageDir.exists() && storageDir.isDirectory()) {
+
+                File[] files = storageDir.listFiles();
+
+                if(files != null) {
+
+                    for (File file : files) {
+
+                        if(file != null && file.isDirectory()
+                                && Environment.MEDIA_MOUNTED.equals(EnvironmentCompat.getStorageState(file.getAbsoluteFile()))
+                                && (file.getName().startsWith("sd") || isNewSdNameFormat(file.getName()))) {
+                            return file;
+                        }
+                    }
+                }
+            }
         }
 
         return null;
+    }
+
+    //eg 1D4C-1CE9
+    private static boolean isNewSdNameFormat(String name) {
+
+        if(name == null || name.isEmpty() || name.length() != 9 || name.charAt(4) != '-') {
+            return false;
+        }
+
+        for (int i = 0; i < name.length(); i++) {
+
+            int c = (int) name.charAt(i);
+
+            if(c == (int)'-') {
+                continue;
+            }
+
+            if(!((c >= ((int)'A') && c <= ((int)'Z')) || (c >= ((int)'0') && c <= ((int)'9')))){
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -316,10 +322,37 @@ public final class Storage {
     }
 
     /**
-     * @return File - External App Data Directory.
+     * @return File - App Files Data Directory on Primary Storage.
+     * */
+    public static File getPrimaryAppFilesDir(Context context) {
+
+        if(context == null) {
+            throw new NullPointerException("Context cannot be null");
+        }
+
+        File primaryDir = getPrimaryStorageDir();
+
+        if(primaryDir != null) {
+
+            String path = primaryDir.getAbsolutePath() +
+                    "/Android/data/" +
+                    context.getApplicationContext().getPackageName();
+
+            File file = new File(path);
+
+            if(file.exists()) {
+                return file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return File - App Files Data Directory on Secondary Storage.
      * */
     @Nullable
-    public static File getSecondaryAppDataDir(@NonNull Context context) {
+    public static File getSecondaryAppFilesDir(@NonNull Context context) {
 
         if(context == null) {
             throw new NullPointerException("Context cannot be null");
@@ -333,7 +366,11 @@ public final class Storage {
                     "/Android/data/" +
                     context.getApplicationContext().getPackageName();
 
-            return new File(path);
+            File file = new File(path);
+
+            if(file.exists()) {
+                return file;
+            }
         }
 
         return null;
@@ -343,13 +380,32 @@ public final class Storage {
      * @param context context
      * @return the size of the directory in bytes
      * */
-    public static long getSecondaryAppDirBytes(Context context) {
+    public static long getSecondaryAppFilesDirBytes(Context context) {
 
         if(context == null) {
             throw new NullPointerException("Context cannot be null");
         }
 
-        File file = getSecondaryAppDataDir(context);
+        File file = getSecondaryAppFilesDir(context);
+
+        if(file == null) {
+            return 0;
+        }
+
+        return getDirectorySize(file);
+    }
+
+    /**
+     * @param context context
+     * @return the size of the directory in bytes
+     * */
+    public static long getPrimaryAppFilesDirBytes(Context context) {
+
+        if(context == null) {
+            throw new NullPointerException("Context cannot be null");
+        }
+
+        File file = getPrimaryStorageDir();
 
         if(file == null) {
             return 0;
@@ -394,7 +450,7 @@ public final class Storage {
 
         long used = getUsedBytesForVolume(path);
         long free = getAvailableBytesForVolume(path);
-        long total = getTotalBytesForVolume(path);
+        long total =getTotalBytesForVolume(path);
         float usedPercentage = getStoragePercentage(used,total);
         float freePercentage = getStoragePercentage(free,total);
 
@@ -418,6 +474,21 @@ public final class Storage {
     }
 
     /**
+     * @return Storage Volume for primary storage directory
+     * */
+    @Nullable
+    public static StorageVolume getPrimaryStorageVolume() {
+
+        File file = getPrimaryStorageDir();
+
+        if(file == null) {
+            return null;
+        }
+
+        return getStorageVolume(file);
+    }
+
+    /**
      * @param context context
      * @return Storage Volume for secondary directory
      * */
@@ -430,24 +501,30 @@ public final class Storage {
 
         File file = getSecondaryStorageDir(context);
 
-        if(file != null) {
-            return getStorageVolume(file);
+        if(file == null) {
+            return null;
         }
 
-        return null;
+        return getStorageVolume(file);
     }
 
     /**
      * @param context context
      * @return the size of the application directory in bytes
      * */
-    public static long getAppDirBytes(Context context){
+    public static long getAppDirBytes(Context context ){
 
         if(context == null) {
             throw new NullPointerException("Context cannot be null");
         }
 
-        return getDirectorySize(getAppDir(context));
+        File file = getAppDir(context);
+
+        if(file == null) {
+            return 0;
+        }
+
+        return getDirectorySize(file);
     }
 
     /**

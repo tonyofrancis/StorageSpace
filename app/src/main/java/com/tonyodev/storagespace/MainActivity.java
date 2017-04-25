@@ -27,11 +27,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void setStorageGraphView() {
 
-        StorageVolume storageVolume = Storage.getInternalStorageVolume();
+        StorageVolume storageVolume = Storage.getPrimaryStorageVolume();
 
         if(storageVolume != null) {
 
-            long appSize = Storage.getAppDirBytes(this);  //Get app size. The App is located on the internal storage
+            long appSize = Storage.getAppDirBytes(this) + Storage.getPrimaryAppFilesDirBytes(this);  //Get app size. The App is located on the internal storage
 
             StorageGraphBar appBar = new StorageGraphBar(
                     Storage.getStoragePercentage(appSize,storageVolume.getTotalSpace()),
@@ -41,10 +41,10 @@ public class MainActivity extends AppCompatActivity {
             );
 
             StorageGraphBar usedBar = new StorageGraphBar(
-                    Storage.getStoragePercentage(storageVolume.getUsedSpace()-appSize,storageVolume.getTotalSpace()), // App size is part of the volume used amount. Subtract it if displaying appSize
+                    Storage.getStoragePercentage(Math.abs(storageVolume.getUsedSpace()-appSize),storageVolume.getTotalSpace()), // App size is part of the volume used amount. Subtract it if displaying appSize
                     ContextCompat.getColor(this,R.color.light_blue),
                     getString(R.string.used),
-                    Storage.getFormattedStorageAmount(this,storageVolume.getUsedSpace() - appSize)
+                    Storage.getFormattedStorageAmount(this,Math.abs(storageVolume.getUsedSpace()) - appSize)
             );
 
             StorageGraphBar freeBar = new StorageGraphBar(
@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
 
         if(storageVolume != null) {
 
-            long appSize = Storage.getSecondaryAppDirBytes(this);
+            long appSize = Storage.getSecondaryAppFilesDirBytes(this);
 
             StorageGraphBar appBar = new StorageGraphBar(
                     Storage.getStoragePercentage(appSize,storageVolume.getTotalSpace()),
