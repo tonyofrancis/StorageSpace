@@ -11,7 +11,6 @@ import android.support.v4.os.EnvironmentCompat;
 import android.text.format.Formatter;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -221,7 +220,7 @@ public final class Storage {
 
                         if(file != null && file.isDirectory()
                                 && Environment.MEDIA_MOUNTED.equals(EnvironmentCompat.getStorageState(file.getAbsoluteFile()))
-                                && (file.getName().startsWith("sd") || isNewSdNameFormat(file.getName()))) {
+                                && (isNewSdNameFormat(file.getName()) || file.getName().startsWith("sd"))) {
                             return file;
                         }
                     }
@@ -367,7 +366,7 @@ public final class Storage {
      * @return percentage of the bytes amount
      * */
     public static float getStoragePercentage(long bytesAmount, long bytesTotal) {
-        return (float) Math.ceil(((double)bytesAmount / (double) bytesTotal) * 100);
+        return (float) ((double)bytesAmount / (double) bytesTotal) * 100;
     }
 
     /**
@@ -474,19 +473,13 @@ public final class Storage {
 
                 size += f.length();
 
-                try {
+                if(f.isDirectory()) {
 
-                    if(f.isDirectory() && f.getAbsolutePath().equals(f.getCanonicalPath())) {
+                    File[] subFiles = f.listFiles();
 
-                        File[] subFiles = f.listFiles();
-
-                        if(subFiles != null) {
-                            queue.addAll(Arrays.asList(subFiles));
-                        }
+                    if(subFiles != null) {
+                        queue.addAll(Arrays.asList(subFiles));
                     }
-
-                }catch (IOException e ){
-                    e.printStackTrace();
                 }
             }
         }
